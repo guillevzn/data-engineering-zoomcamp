@@ -68,3 +68,8 @@ LIMIT 1;
 ```
 
 - Response: JFK Airport
+
+
+# Question 7
+
+- Response: terraform init, terraform apply -auto-approve, terraform destroy
