@@ -1,0 +1,36 @@
+id: gcp_taxi_etl
+namespace: taxi.etl
+description: Base ETL flow for taxi data
+
+inputs:
+  - name: taxi
+    type: STRING
+  - name: year
+    type: STRING
+  - name: month
+    type: STRING
+
+tasks:
+  - id: extract
+    type: io.kestra.plugin.core.http.Download
+    uri: "https://github.com/DataTalksClub/nyc-tlc-data/releases/download/{{inputs.taxi}}/{{inputs.taxi}}_tripdata_{{inputs.year}}-{{inputs.month}}.csv"
+    output: "{{inputs.taxi}}_tripdata_{{inputs.year}}-{{inputs.month}}.csv"
+
+  - id: convert_to_parquet
+    type: io.kestra.plugin.serdes.csv.CsvToParquet
+    from: "{{outputs.extract.output}}"
+    timeZone: UTC
+
+  - id: upload_gcs
+    type: io.kestra.plugin.gcp.gcs.Upload
+    from: "{{outputs.convert_to_parquet.uri}}"
+    to: "gs://bucket-name/{{inputs.taxi}}/{{inputs.year}}/{{inputs.taxi}}_tripdata_{{inputs.year}}-{{inputs.month}}.parquet"
+    serviceAccount: "{{secret('GCP_SA_CREDENTIALS')}}"
+
+  - id: bq_load
+    type: io.kestra.plugin.gcp.bigquery.Load
+    from: "{{outputs.convert_to_parquet.uri}}"
+    destinationTable: "dataset.{{inputs.taxi}}_trips"
+    format: PARQUET
+    serviceAccount: "{{secret('GCP_SA_CREDENTIALS')}}"
+    writeDisposition: WRITE_APPEND
